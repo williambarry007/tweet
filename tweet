@@ -1,0 +1,99 @@
+#!/usr/bin/php -q
+<?php
+
+if ($argc > 1 && $argv[1] == '--config')
+{
+    setupConfig();
+    exit;
+}
+
+if ($argc < 2) { echo "Usage: tweet [--config] [<message>]\n"; exit; }
+
+$configFile = realpath(getenv('HOME') .'/.tweet');
+while (!$configFile)
+{
+    $yesno = getAnswer('Your tweet config file is not set up yet, do you want to set it up now?', array('y', 'n'));
+    if ($yesno == 'y')
+    {
+        setupConfig();
+        echo "Please try your tweet again.\n";
+    }
+    exit;
+}
+
+array_shift($argv);
+$msg = trim(implode(' ', $argv));
+if (strlen($msg) == 0) { echo "You must give a message..\nUsage: tweet (--config | <message>)\n"; exit; }
+if (strlen($msg) > 140) { echo "Your message must be 140 or fewer characters.\n"; exit; }
+
+$opts = parseConfigFile($configFile);
+if (!$opts->username) { echo "No username in tweet config file.\n"; exit; }
+if (!$opts->password) { echo "No password in tweet config file.\n"; exit; }
+
+$cmd = "curl -u $opts->username:$opts->password -d status=\"$msg\" http://twitter.com/statuses/update.xml";
+shell_exec($cmd);
+echo "Your tweet was sent successfully.\n\n";
+
+/******************************************************************************/
+
+function parseConfigFile($configFile)
+{
+    $str = trim(file_get_contents($configFile));
+    $lines = explode("\n", $str);
+    $opts = new stdClass();
+    $opts->username = false;
+    $opts->password = false;
+
+    foreach ($lines as $line)
+    {
+        $arr = explode('=', $line);
+        $key = trim(array_shift($arr));
+        $val = trim(implode('', $arr));
+        $opts->{$key} = $val;
+    }
+    return $opts;
+}
+
+function setupConfig()
+{
+    echo "Tweet Config - set up your tweet config file.\n";
+
+    $username = getAnswer('Enter your twitter username ("q" to quit):', false, 'q');
+    $password = getAnswer('Enter your twitter password ("q" to quit):', false, 'q');
+
+    $home = getenv('HOME');
+    $configFile = "$home/.tweet";
+    if (file_exists($configFile))
+    {
+        $confirm = getAnswer('It looks like you already have a tweet config file.  Overwrite? [y/n]', array('y', 'n'), 'q');
+        if ($confirm == 'n')
+            exit;
+    }
+    else
+        touch($configFile);
+
+    $str = '';
+    $str .= "username = $username\n";
+    $str .= "password = $password";
+
+    file_put_contents($configFile, $str);
+
+    echo "Your tweet config file has been created.\n";
+}
+
+function getAnswer($question, $allowedResponses = false, $exitKey = false)
+{
+    $str = '';
+    while (strlen(trim($str)) == 0)
+    {
+        echo "$question ";
+        $str = fgets(STDIN);
+        $str = trim($str);
+
+        if ($exitKey && $str == $exitKey)
+            exit;
+        if ($allowedResponses && !in_array($str, $allowedResponses))
+            $str = '';
+    }
+    return $str;
+}
