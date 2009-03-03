@@ -1,5 +1,12 @@
 #!/usr/bin/php -q
 <?php
+/*******************************************************************************
+File: tweet
+Version: 0.1
+Author: William Barry (williambarry007@gmail.com)
+Description: A command-line client for twitter.
+Usage: tweet [--config] [<message>]
+*******************************************************************************/
 
 if ($argc > 1 && $argv[1] == '--config')
 {
